@@ -1,3 +1,24 @@
+# =============================================================================
+# AMP-dockerized (Podman variant)
+# =============================================================================
+# This is a COPY of the main `Dockerfile` that additionally bundles Podman and
+# pre-applies the fixes needed to run AMP "containerized" instances (which use
+# Podman) from inside this Docker container. Baking these in means you do NOT
+# have to reinstall Podman or re-apply the registry fix every time the container
+# is recreated/updated.
+#
+# What this variant adds on top of the base image:
+#   * Podman (+ the packages required for rootless Podman inside a container)
+#   * A default /etc/containers/registries.conf so that "short-name" images
+#     (e.g. cubecoders/ampbase:debian) resolve against docker.io
+#
+# Runtime-only fixes (the shared-mount fix and the amp user's subuid/subgid
+# ranges) are handled automatically by entrypoint/routines.sh:configure_podman.
+#
+# NOTE: Keep this file in sync with `Dockerfile`. Only the clearly-marked
+#       "Podman variant" sections should differ from the base image.
+# =============================================================================
+
 FROM debian:13-slim
  
 ARG TARGETPLATFORM # Set by Docker, see https://docs.docker.com/engine/reference/builder/#automatic-platform-args-in-the-global-scope
@@ -14,7 +35,7 @@ ENV AMP_AUTO_UPDATE=true
 ENV AMP_RELEASE_STREAM=Mainline
 ENV AMP_SUPPORT_LEVEL=UNSUPPORTED
 ENV AMP_SUPPORT_TOKEN=AST0/MTAD
-ENV AMP_SUPPORT_TAGS="nosupport docker community unofficial unraid"
+ENV AMP_SUPPORT_TAGS="nosupport docker community unofficial unraid podman"
 ENV AMP_SUPPORT_URL="https://github.com/MitchTalmadge/AMP-dockerized/"
 ENV LD_LIBRARY_PATH="./:/opt/cubecoders/amp/:/AMP/"
 
@@ -137,6 +158,36 @@ RUN if [ "$TARGETPLATFORM" = "linux/arm64" ]; then \
     /tmp/* \
     /var/lib/apt/lists/* \
     /var/tmp/*
+
+# ---------------------------------------------------------------------------
+# Podman variant: install Podman and the packages needed to run it (rootless)
+# from inside this container. AMP uses Podman for "containerized" instances.
+# ---------------------------------------------------------------------------
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    podman \
+    buildah \
+    uidmap \
+    slirp4netns \
+    fuse-overlayfs \
+    crun \
+    dbus-user-session \
+    catatonit && \
+    apt-get -y clean && \
+    apt-get -y autoremove --purge && \
+    rm -rf \
+    /tmp/* \
+    /var/lib/apt/lists/* \
+    /var/tmp/*
+
+# ---------------------------------------------------------------------------
+# Podman variant: registry fix. Clean Podman installs don't know where to look
+# for "short-name" images (like cubecoders/ampbase:debian) because they lack a
+# default registry configuration. Baking this in means the fix survives every
+# container rebuild. (entrypoint/routines.sh re-applies it too, idempotently.)
+# ---------------------------------------------------------------------------
+RUN mkdir -p /etc/containers && \
+    printf 'unqualified-search-registries = ["docker.io"]\n' > /etc/containers/registries.conf
 
 # Install Adoptium JDK
 RUN wget -O - https://packages.adoptium.net/artifactory/api/gpg/key/public | tee /etc/apt/keyrings/adoptium.asc && \
