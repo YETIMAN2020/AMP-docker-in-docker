@@ -1,0 +1,50 @@
+# Example Docker Compose for the Podman-enabled image variant.
+#
+# Use this if you want AMP to run "containerized" instances (which use Podman)
+# from inside this container. Podman and the required fixes are baked into the
+# image (mitchtalmadge/amp-dockerized:podman), so you do NOT need to reinstall
+# Podman or re-apply the registry fix every time the container is recreated.
+#
+# The only host-side requirement is granting the container permission to create
+# user namespaces for Podman: either run it privileged, or add SYS_ADMIN + an
+# unconfined seccomp profile (see cap_add / security_opt below).
+#
+# Build the Podman variant first:
+#     docker build -f Dockerfile.podman -t amp-dockerized:podman .
+services:
+  amp:
+    container_name: amp
+    image: amp-dockerized:podman
+    networks:
+      default:
+        mac_address: 02:42:AC:XX:XX:XX # Please see the README about this field.
+
+    # --- Permissions required for Podman (pick ONE of the two options) ---
+    # Option A (simplest): run privileged.
+    # privileged: true
+    #
+    # Option B (least privilege): add SYS_ADMIN and disable seccomp confinement.
+    cap_add:
+      - SYS_ADMIN
+    security_opt:
+      - seccomp=unconfined
+    # /dev/fuse is needed for the fuse-overlayfs storage driver used by rootless Podman.
+    devices:
+      - /dev/fuse
+
+    ports:
+      - 8080:8080                       # AMP Web UI
+      # Uncomment the ports below as needed for whatever game servers you'll be running.
+      # - 34197:34197/udp               # Factorio
+      # - 27015:27015/udp               # GMod, TF2, and other Source engine games
+      # - 19132:19132/udp               # Minecraft Bedrock Edition
+      # - 25565:25565                   # Minecraft Java Edition
+      # - 21025:21025                   # Starbound
+      # - 5678-5680:5678-5680/udp       # Valheim
+    volumes:
+      - ./ampdata:/home/amp/
+    environment:
+      - "UID=120" # Change according to which user on the host will own the ampdata volume.
+      - "GID=124"
+      - "TZ=Etc/UTC" # https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
+    restart: unless-stopped
