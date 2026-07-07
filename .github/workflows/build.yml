@@ -35,7 +35,7 @@ jobs:
         with:
           context: .
           platforms: linux/${{ matrix.arch }}
-          tags: amp-dockerized:latest
+          tags: amp-docker-in-docker:latest
           outputs: type=docker,dest=/tmp/docker-image-${{ matrix.arch }}.tar
       - name: "Upload Docker Image Artifact"
         if: ${{ inputs.for_deploy == true }}
@@ -53,5 +53,5 @@ jobs:
           context: .
           file: Dockerfile.podman
           platforms: linux/${{ matrix.arch }}
-          tags: amp-dockerized:podman
+          tags: amp-docker-in-docker:podman
           outputs: type=cacheonly

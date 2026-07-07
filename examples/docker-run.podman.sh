@@ -3,7 +3,7 @@
 #
 # Use this if you want AMP to run "containerized" instances (which use Podman)
 # from inside this container. Podman and the required fixes are baked into the
-# image (mitchtalmadge/amp-dockerized:podman), so you do NOT need to reinstall
+# image (amp-docker-in-docker:podman), so you do NOT need to reinstall
 # Podman or re-apply the registry fix every time the container is recreated.
 #
 # Podman needs permission to create user namespaces. Either run the container
@@ -11,7 +11,7 @@
 # as shown below.
 #
 # Build the Podman variant first:
-#     docker build -f Dockerfile.podman -t amp-dockerized:podman .
+#     docker build -f Dockerfile.podman -t amp-docker-in-docker:podman .
 
 docker run -d \
   --name amp \
@@ -33,4 +33,4 @@ docker run -d \
   -e UID=120 \
   -e GID=124 \
   -e TZ=Etc/UTC \
-  amp-dockerized:podman
+  amp-docker-in-docker:podman

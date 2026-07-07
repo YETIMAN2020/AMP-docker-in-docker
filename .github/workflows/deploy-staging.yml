@@ -4,7 +4,7 @@ name: "Deploy Staging"
 # to YOUR OWN Docker Hub account under the ":staging" tag. Requires the same
 # DOCKERHUB_USERNAME / DOCKERHUB_TOKEN secrets as the production workflow.
 #
-# Publishes: <DOCKERHUB_USERNAME>/amp-dockerized:staging
+# Publishes: <DOCKERHUB_USERNAME>/amp-docker-in-docker:staging
 
 on:
   push:
@@ -71,4 +71,4 @@ jobs:
           file: Dockerfile.podman
           platforms: ${{ steps.platforms.outputs.value }}
           push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/amp-dockerized:staging
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/amp-docker-in-docker:staging

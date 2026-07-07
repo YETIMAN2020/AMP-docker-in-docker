@@ -1,9 +1,9 @@
 <?xml version="1.0"?>
 <Container version="2">
-  <Name>AMP-Podman</Name>
+  <Name>AMP-Docker-in-Docker</Name>
   <!-- Change this to your own published image (e.g. from the Deploy Production workflow). -->
-  <Repository>yetiman2020/amp-dockerized:podman</Repository>
-  <Registry>https://hub.docker.com/r/yetiman2020/amp-dockerized</Registry>
+  <Repository>yetiman2020/amp-docker-in-docker:podman</Repository>
+  <Registry>https://hub.docker.com/r/yetiman2020/amp-docker-in-docker</Registry>
   <!--
     Host networking is recommended for this image when running Dune: Awakening:
     the game uses a large/dynamic UDP port pool plus RabbitMQ, and host mode

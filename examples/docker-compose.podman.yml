@@ -2,7 +2,7 @@
 #
 # Use this if you want AMP to run "containerized" instances (which use Podman)
 # from inside this container. Podman and the required fixes are baked into the
-# image (mitchtalmadge/amp-dockerized:podman), so you do NOT need to reinstall
+# image (amp-docker-in-docker:podman), so you do NOT need to reinstall
 # Podman or re-apply the registry fix every time the container is recreated.
 #
 # The only host-side requirement is granting the container permission to create
@@ -10,11 +10,11 @@
 # unconfined seccomp profile (see cap_add / security_opt below).
 #
 # Build the Podman variant first:
-#     docker build -f Dockerfile.podman -t amp-dockerized:podman .
+#     docker build -f Dockerfile.podman -t amp-docker-in-docker:podman .
 services:
   amp:
     container_name: amp
-    image: amp-dockerized:podman
+    image: amp-docker-in-docker:podman
     networks:
       default:
         mac_address: 02:42:AC:XX:XX:XX # Please see the README about this field.
