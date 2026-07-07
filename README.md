@@ -241,6 +241,10 @@ It is **off by default**. Enable it with `DUNE_ADMIN_ENABLED=true` and configure
 
 With Host networking, the panel is reachable directly at `http://<host-ip>:<DUNE_ADMIN_PORT>`. On bridge networking, map the port like any other. To pin/upgrade the dune-admin version, rebuild the image with `--build-arg DUNE_ADMIN_VERSION=vX.Y.Z`.
 
+### Unraid template
+
+An Unraid container template with all of the above already laid out as editable fields (AMP data path, UID/GID/TZ, the Podman permission flags, and every `DUNE_ADMIN_*` option) lives at [`unraid/amp-dockerized-podman.xml`](./unraid/amp-dockerized-podman.xml). To use it, copy it into `/boot/config/plugins/dockerMan/templates-user/` on your Unraid server (edit the `<Repository>` to point at your published image first), then in the Unraid **Docker** tab choose **Add Container → Template: AMP-Podman**. The dune-admin port and options then appear as normal fields, so you can change them without adding variables by hand.
+
 # Advanced Configuration
 Please see the [advanced configuration wiki page](https://github.com/MitchTalmadge/AMP-dockerized/wiki/Advanced-Configuration) for more that you can do with this container.
 
