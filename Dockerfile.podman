@@ -189,6 +189,31 @@ RUN apt-get update && \
 RUN mkdir -p /etc/containers && \
     printf 'unqualified-search-registries = ["docker.io"]\n' > /etc/containers/registries.conf
 
+# ---------------------------------------------------------------------------
+# Podman variant: bundle dune-admin (https://github.com/Icehunter/dune-admin),
+# an optional web admin panel for a Dune Awakening private server managed by AMP.
+# It is installed but NOT started unless DUNE_ADMIN_ENABLED=true at runtime
+# (see entrypoint/routines.sh:start_dune_admin). Updating this image updates
+# dune-admin. `sudo` is installed because the dune-admin "amp" provider shells
+# out with `sudo -u <amp-user>` to run ampinstmgr / podman as the AMP user.
+# ---------------------------------------------------------------------------
+ARG DUNE_ADMIN_VERSION=v0.43.1
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends sudo ca-certificates && \
+    if [ "$TARGETPLATFORM" = "linux/arm64" ]; then DA_ARCH=arm64; else DA_ARCH=amd64; fi && \
+    mkdir -p /opt/dune-admin && \
+    wget -qO /tmp/dune-admin.tgz "https://github.com/Icehunter/dune-admin/releases/download/${DUNE_ADMIN_VERSION}/dune-admin_linux_${DA_ARCH}.tar.gz" && \
+    tar -xzf /tmp/dune-admin.tgz -C /opt/dune-admin && \
+    chmod +x /opt/dune-admin/dune-admin && \
+    apt-get -y clean && \
+    apt-get -y autoremove --purge && \
+    rm -rf \
+    /tmp/* \
+    /var/lib/apt/lists/* \
+    /var/tmp/*
+ENV DUNE_ADMIN_ENABLED=false
+ENV DUNE_ADMIN_VERSION=${DUNE_ADMIN_VERSION}
+
 # Install Adoptium JDK
 RUN wget -O - https://packages.adoptium.net/artifactory/api/gpg/key/public | tee /etc/apt/keyrings/adoptium.asc && \
     echo "deb [signed-by=/etc/apt/keyrings/adoptium.asc] https://packages.adoptium.net/artifactory/deb $(awk -F= '/^VERSION_CODENAME/{print$2}' /etc/os-release) main" | tee /etc/apt/sources.list.d/adoptium.list && \

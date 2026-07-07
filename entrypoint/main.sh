@@ -59,6 +59,8 @@ fi
 
 start_amp
 
+start_dune_admin
+
 # Sleep
 echo "AMP is now running. Logs can be viewed through AMP web UI or at ampdata/instances/Main/AMP_Logs"
 monitor_amp &

@@ -219,6 +219,28 @@ On Unraid, in addition to the permission flags above, set your AMP data path map
 
 See [`examples/docker-compose.podman.yml`](./examples/docker-compose.podman.yml) and [`examples/docker-run.podman.sh`](./examples/docker-run.podman.sh) for complete examples.
 
+## dune-admin (Dune: Awakening admin panel)
+
+The Podman variant also bundles [**dune-admin**](https://github.com/Icehunter/dune-admin), an optional web admin panel for a Dune: Awakening private server managed by AMP (players, inventory, world, market bot, database, server settings, start/stop/restart, log streaming). Because it's baked into the image, updating the image updates dune-admin — no reinstalling after a container rebuild.
+
+It is **off by default**. Enable it with `DUNE_ADMIN_ENABLED=true` and configure it with the environment variables below. When enabled, the entrypoint writes `~/.dune-admin/config.yaml` (under `/home/amp`, so it persists on your volume) and launches dune-admin after AMP starts, using the `amp` provider (it runs `ampinstmgr`/`podman` via `sudo` as the AMP user).
+
+| Name | Description | Default |
+|------|-------------|---------|
+| `DUNE_ADMIN_ENABLED` | Set to `true` to run dune-admin. | `false` |
+| `DUNE_ADMIN_PORT` | Port for the dune-admin web UI. | `18080` |
+| `DUNE_ADMIN_INSTANCE` | AMP instance name of your Dune server (from `ampinstmgr -l`). | `Arrakis01` |
+| `DUNE_ADMIN_CONTAINER` | Podman container name for the instance. | `AMP_<instance>` |
+| `DUNE_ADMIN_DB_HOST` / `_PORT` / `_USER` / `_PASS` / `_NAME` / `_SCHEMA` | Game PostgreSQL connection. | `127.0.0.1` / `15432` / `dune` / `dune` / `dune` / `dune` |
+| `DUNE_ADMIN_API_USER` / `_PASS` / `_PORT` | AMP panel login used only for the Server Settings tab (the instance's ADS API). | *(unset)* / *(unset)* / `8086` |
+| `DUNE_ADMIN_AUTH_USER` | Dashboard login username (enables auth when set with the hash below). | *(unset)* |
+| `DUNE_ADMIN_AUTH_PASSWORD_HASH` | bcrypt hash of the dashboard password (`dune-admin --set-password` prints one). | *(unset)* |
+
+> [!CAUTION]
+> dune-admin has **full control** of your game server (edit inventories, run SQL, restart). If auth is not configured, anyone who can reach `DUNE_ADMIN_PORT` has that control. Set `DUNE_ADMIN_AUTH_USER` + `DUNE_ADMIN_AUTH_PASSWORD_HASH` (or configure Discord OAuth in `~/.dune-admin/config.yaml`) before exposing it.
+
+With Host networking, the panel is reachable directly at `http://<host-ip>:<DUNE_ADMIN_PORT>`. On bridge networking, map the port like any other. To pin/upgrade the dune-admin version, rebuild the image with `--build-arg DUNE_ADMIN_VERSION=vX.Y.Z`.
+
 # Advanced Configuration
 Please see the [advanced configuration wiki page](https://github.com/MitchTalmadge/AMP-dockerized/wiki/Advanced-Configuration) for more that you can do with this container.
 

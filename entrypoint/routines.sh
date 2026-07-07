@@ -234,6 +234,100 @@ start_amp() {
   echo "AMP Started!"
 }
 
+start_dune_admin() {
+  # Optional: launch dune-admin (https://github.com/Icehunter/dune-admin), a web
+  # admin panel for a Dune Awakening private server managed by AMP.
+  # Only runs in the Podman image variant (where dune-admin + podman are present)
+  # and only when DUNE_ADMIN_ENABLED=true. No-op otherwise, so the base image and
+  # non-Dune users are unaffected.
+  if [ "${DUNE_ADMIN_ENABLED}" != "true" ]; then
+    return 0
+  fi
+
+  local DA_BIN="/opt/dune-admin/dune-admin"
+  if [ ! -x "${DA_BIN}" ]; then
+    echo "DUNE_ADMIN_ENABLED=true but dune-admin is not installed in this image."
+    echo "dune-admin is only bundled in the Podman image variant (Dockerfile.podman). Skipping."
+    return 0
+  fi
+
+  echo "Starting dune-admin..."
+
+  local instance="${DUNE_ADMIN_INSTANCE:-Arrakis01}"
+  local container="${DUNE_ADMIN_CONTAINER:-AMP_${instance}}"
+  local port="${DUNE_ADMIN_PORT:-18080}"
+  local cfg_dir="/home/amp/.dune-admin"
+
+  mkdir -p "${cfg_dir}"
+
+  # dune-admin reads ~/.dune-admin/config.yaml. We launch it as root (so its
+  # "amp" provider can `sudo -u ${APP_USER}` to run ampinstmgr/podman), with
+  # HOME=/home/amp so all its state (config, auth db, audit log, market cache)
+  # persists in the mounted volume across container rebuilds.
+  {
+    echo "control: amp"
+    echo "db_host: ${DUNE_ADMIN_DB_HOST:-127.0.0.1}"
+    echo "db_port: ${DUNE_ADMIN_DB_PORT:-15432}"
+    echo "db_user: ${DUNE_ADMIN_DB_USER:-dune}"
+    echo "db_pass: ${DUNE_ADMIN_DB_PASS:-dune}"
+    echo "db_name: ${DUNE_ADMIN_DB_NAME:-dune}"
+    echo "db_schema: ${DUNE_ADMIN_DB_SCHEMA:-dune}"
+    echo "amp_instance: ${instance}"
+    echo "amp_container: ${container}"
+    echo "amp_user: ${APP_USER}"
+    echo "amp_use_container: true"
+    echo "amp_container_runtime: podman"
+    echo "amp_data_root: /AMP/duneawakening"
+    echo "broker_exec_prefix: \"sudo -i -u ${APP_USER} podman exec ${container}\""
+    echo "market_bot_cache_db: ${cfg_dir}/market-bot-cache.db"
+    echo "market_bot_item_data: /opt/dune-admin/item-data.json"
+    echo "listen_addr: :${port}"
+  } >"${cfg_dir}/config.yaml"
+
+  # AMP Web API login (only needed for the Server Settings tab under AMP).
+  if [ -n "${DUNE_ADMIN_API_USER}" ]; then
+    {
+      echo "amp_api_user: ${DUNE_ADMIN_API_USER}"
+      echo "amp_api_pass: ${DUNE_ADMIN_API_PASS}"
+      echo "amp_api_port: ${DUNE_ADMIN_API_PORT:-8086}"
+    } >>"${cfg_dir}/config.yaml"
+  fi
+
+  # Optional dashboard auth. Strongly recommended: dune-admin has full control of
+  # the game server. Provide a bcrypt hash (dune-admin --set-password prints one).
+  if [ -n "${DUNE_ADMIN_AUTH_USER}" ] && [ -n "${DUNE_ADMIN_AUTH_PASSWORD_HASH}" ]; then
+    {
+      echo "auth_enabled: true"
+      echo "auth_local_username: ${DUNE_ADMIN_AUTH_USER}"
+      echo "auth_local_password_hash: \"${DUNE_ADMIN_AUTH_PASSWORD_HASH}\""
+    } >>"${cfg_dir}/config.yaml"
+  else
+    echo "Warning: dune-admin auth is disabled. Anyone who can reach port ${port} has full control of your server."
+    echo "         Set DUNE_ADMIN_AUTH_USER and DUNE_ADMIN_AUTH_PASSWORD_HASH to enable a login."
+  fi
+
+  chown -R ${APP_USER}:${APP_GROUP} "${cfg_dir}" 2>/dev/null || true
+
+  # Launch in the background once the Dune container is up. dune-admin tolerates
+  # the DB not being ready yet and will keep retrying, but we wait for the
+  # container so the amp provider has something to talk to.
+  (
+    local waited=0
+    until su -l "${APP_USER}" -c "podman ps --format '{{.Names}}'" 2>/dev/null | grep -q "^${container}$"; do
+      sleep 5
+      waited=$((waited + 5))
+      if [ "${waited}" -ge 300 ]; then
+        echo "dune-admin: timed out waiting for container ${container}; starting anyway."
+        break
+      fi
+    done
+    cd /opt/dune-admin
+    HOME=/home/amp "${DA_BIN}" >>"${cfg_dir}/dune-admin.log" 2>&1
+  ) &
+
+  echo "dune-admin started on port ${port} (logs: ${cfg_dir}/dune-admin.log)"
+}
+
 stop_amp() {
   echo "Stopping AMP..."
   run_amp_command "StopAll"
