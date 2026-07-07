@@ -308,6 +308,13 @@ start_dune_admin() {
 
   chown -R ${APP_USER}:${APP_GROUP} "${cfg_dir}" 2>/dev/null || true
 
+  # dune-admin resolves ~/.dune-admin from the running user's home directory.
+  # We run it as root (so its "amp" provider can sudo to the AMP user), and
+  # root's home is /root -- not /home/amp. Point root's config dir at the
+  # persistent volume location so dune-admin actually finds our config.yaml
+  # (and keeps its own state -- auth db, audit log, market cache -- on the volume).
+  ln -sfn "${cfg_dir}" /root/.dune-admin
+
   # Launch in the background once the Dune container is up. dune-admin tolerates
   # the DB not being ready yet and will keep retrying, but we wait for the
   # container so the amp provider has something to talk to.
