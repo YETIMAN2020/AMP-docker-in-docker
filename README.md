@@ -34,4 +34,4 @@ When adding this as a custom Docker container in Unraid, ensure the following co
 
 - Massive credit to **[MitchTalmadge](https://github.com/MitchTalmadge)** for the foundational [AMP-dockerized](https://github.com/MitchTalmadge/AMP-dockerized) architecture.
 - Credit to **[Icehunter](https://github.com/Icehunter)** for the excellent [dune-admin](https://github.com/Icehunter/dune-admin) control panel integration.
-- This repository is provided as-is. It is highly experimental, heavily tailored for Unraid environments, and might require manual troubleshooting if nested image registries act up.
+- This repository is provided as-is. It is highly experimental, heavily tailored for Unraid environments, and might require manual troubleshooting if nested image registries implode.
