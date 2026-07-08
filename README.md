@@ -8,6 +8,14 @@ As an added bonus of absolute "jank,and duct tape" this image also pre-scripts a
 
 Yes, it's duct-taped together. Yes, it shouldn't work. **But it does.**
 
+Also any issues with the DB connection in the dune admin panel can be fixed but stopping the service and starting it again with
+
+`pkill -f /opt/dune-admin/dune-admin`
+
+and then with `cd /opt/dune-admin && nohup ./dune-admin >>/home/amp/.dune-admin/dune-admin.log 2>&1 &` 
+
+I have yet to sort a work around for it (the dune admin panel starts before the server then refuses to connect)
+
 ---
 
 ##  Features
