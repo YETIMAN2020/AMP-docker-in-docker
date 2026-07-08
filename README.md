@@ -32,7 +32,7 @@ also please read the setup guide for [AMP-dockerized](https://github.com/MitchTa
 3. **Volume Mounts:** Ensure your AMP data directory (`/home/amp/.ampdata`) is mapped to a fast cache pool user share (e.g., `/mnt/user/appdata/amp-dind/`) to prevent nested disk I/O bottlenecks.
 4. please please please make backups this could straight up implode also store your instances outside of the main AMP docker
 
-## 📜 Credits & Disclaimers
+##  Credits & Disclaimers
 
 - Massive credit to **[MitchTalmadge](https://github.com/MitchTalmadge)** for the foundational [AMP-dockerized](https://github.com/MitchTalmadge/AMP-dockerized) architecture.
 - Credit to **[Icehunter](https://github.com/Icehunter)** for the excellent [dune-admin](https://github.com/Icehunter/dune-admin) control panel integration.
