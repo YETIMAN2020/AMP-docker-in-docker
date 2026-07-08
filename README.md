@@ -23,6 +23,7 @@ Because this container runs Docker daemons inside a Docker container (on top of 
 ### Prerequisites & Template Settings
 
 When adding this as a custom Docker container in Unraid, ensure the following configuration options are met:
+also please read the setup guide for [AMP-dockerized](https://github.com/MitchTalmadge/AMP-dockerized) as it could take a got minute to get to work
 
 1. **Privileged Mode:** You **must** turn on `Privileged` mode (`--privileged`) in your Unraid Docker template. Nested virtualization and container routing require full host kernel capabilities.
 2. **Docker Storage Driver:** If you experience issues with sub-containers failing to pull or extract images, add the following environment variable to your template:
