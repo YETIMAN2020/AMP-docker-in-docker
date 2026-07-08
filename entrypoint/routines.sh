@@ -325,19 +325,37 @@ start_dune_admin() {
   # (and keeps its own state -- auth db, audit log, market cache -- on the volume).
   ln -sfn "${cfg_dir}" /root/.dune-admin
 
-  # Launch in the background once the Dune container is up. dune-admin tolerates
-  # the DB not being ready yet and will keep retrying, but we wait for the
-  # container so the amp provider has something to talk to.
+  # Launch in the background. dune-admin only attempts the DB connection once at
+  # startup (its in-UI "Reconnect" does not reuse the config credentials), so we
+  # must wait until the Dune stack is genuinely ready before launching -- first
+  # for the container, then for PostgreSQL to actually accept connections.
+  # Otherwise dune-admin starts before Postgres is listening, gets "connection
+  # refused", and sits disconnected until manually restarted.
+  local db_host="${DUNE_ADMIN_DB_HOST:-127.0.0.1}"
+  local db_port="${DUNE_ADMIN_DB_PORT:-15432}"
   (
     local waited=0
+    # 1. Wait for the Dune Podman container to be up (needed by the amp provider).
     until su -l "${APP_USER}" -c "podman ps --format '{{.Names}}'" 2>/dev/null | grep -q "^${container}$"; do
       sleep 5
       waited=$((waited + 5))
-      if [ "${waited}" -ge 300 ]; then
+      if [ "${waited}" -ge 600 ]; then
         echo "dune-admin: timed out waiting for container ${container}; starting anyway."
         break
       fi
     done
+    # 2. Wait for PostgreSQL to actually accept TCP connections (bash /dev/tcp,
+    #    since the image ships no ss/netstat/pg client).
+    waited=0
+    until (exec 3<>"/dev/tcp/${db_host}/${db_port}") 2>/dev/null; do
+      sleep 5
+      waited=$((waited + 5))
+      if [ "${waited}" -ge 600 ]; then
+        echo "dune-admin: timed out waiting for database ${db_host}:${db_port}; starting anyway."
+        break
+      fi
+    done
+    exec 3>&- 2>/dev/null || true
     cd /opt/dune-admin
     HOME=/home/amp "${DA_BIN}" >>"${cfg_dir}/dune-admin.log" 2>&1
   ) &
