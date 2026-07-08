@@ -108,6 +108,16 @@ configure_podman() {
 
   echo "Configuring Podman..."
 
+  # 0. Stale boot-ID cleanup. Podman records the host's boot ID in its transient
+  #    runtime dir (runroot). Docker keeps the container's writable layer across
+  #    restarts, so after a host reboot or container restart that runroot survives
+  #    with the old boot ID and Podman fails with:
+  #      "current system boot ID differs from cached boot ID"
+  #    Clearing the transient runroot on startup fixes this. It does NOT touch the
+  #    persistent image/container storage (graphroot lives under the AMP user's home).
+  echo "Clearing stale Podman runtime directories..."
+  rm -rf /tmp/storage-run-* /tmp/podman-run-* /tmp/containers-user-* 2>/dev/null || true
+
   # 1. Registry fix (also baked into the image): clean Podman installs don't know
   #    where to look for "short-name" images (e.g. cubecoders/ampbase:debian)
   #    without a default unqualified search registry. Applied idempotently here in
