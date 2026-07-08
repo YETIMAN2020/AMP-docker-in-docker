@@ -20,7 +20,7 @@
   <Category>GameServers:</Category>
   <WebUI>http://[IP]:8181/</WebUI>
   <TemplateURL/>
-  <Icon>https://raw.githubusercontent.com/MitchTalmadge/AMP-dockerized/master/.github/amp-logo.png</Icon>
+  <Icon>https://raw.githubusercontent.com/CorneliousJD/Docker-Templates/master/icons/amp.png</Icon>
   <!--
     Permissions required so Podman can create user namespaces inside the container.
     Use these OR set Privileged to true above (then you can drop the cap-add/seccomp).
