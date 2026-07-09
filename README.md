@@ -2,7 +2,7 @@
 
 This is a customized, modified fork of [MitchTalmadge/AMP-dockerized](https://github.com/MitchTalmadge/AMP-dockerized). 
 
-The primary goal of this modified version is to allow **AMP (Cubecoders Application Management Panel)** to run nested Docker containers internally, specifically tailored to deploy and manage a **Dune: Awakening** dedicated server on an **Unraid** host.
+The primary goal of this modified version is to allow **AMP (Cubecoders Application Management Panel)** to run nested Docker containers internally (Basically running a docker inside a docker) specifically tailored to deploy and manage a **Dune: Awakening** dedicated server on an **Unraid** host.
 
 As an added bonus of absolute "jank,and duct tape" this image also pre-scripts and embeds the **DUNE-Admin web panel** directly into the container. 
 
