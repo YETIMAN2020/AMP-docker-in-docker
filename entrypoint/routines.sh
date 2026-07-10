@@ -144,7 +144,39 @@ configure_podman() {
     echo "         Run this container with --privileged, or --cap-add=SYS_ADMIN --security-opt seccomp=unconfined."
   fi
 
+  # 4. AMP "containerized" instance precheck: AMP refuses to start an instance
+  #    configured to run in a container unless the user running AMP (amp) is a
+  #    member of a group literally named "docker" -- it fails with:
+  #      "Current user (amp) isn't part of the docker group. You can fix this by
+  #       running `usermod -a -G docker amp` as root."
+  #    This holds even though the backend here is rootless Podman (which itself
+  #    needs no docker group / docker.sock). The amp user is recreated on every
+  #    boot, so a manual usermod would not survive a restart -- we ensure the
+  #    group exists and amp belongs to it here, before start_amp, so the
+  #    membership is in effect for every `su ${APP_USER}` AMP runs under.
+  ensure_docker_group_membership "${APP_USER}"
+
   echo "Podman configured!"
+}
+
+ensure_docker_group_membership() {
+  # Ensures a group named "docker" exists and the given user is a member.
+  # Idempotent. Usage: ensure_docker_group_membership <user>
+  local user="$1"
+  if [ -z "${user}" ]; then
+    return 0
+  fi
+
+  if ! getent group docker >/dev/null 2>&1; then
+    echo "Creating 'docker' group (required by AMP's containerized-instance check)..."
+    groupadd docker 2>/dev/null || addgroup docker 2>/dev/null || true
+  fi
+
+  if getent group docker >/dev/null 2>&1 && \
+     ! id -nG "${user}" 2>/dev/null | tr ' ' '\n' | grep -qx docker; then
+    echo "Adding ${user} to the 'docker' group..."
+    usermod -aG docker "${user}" 2>/dev/null || adduser "${user}" docker 2>/dev/null || true
+  fi
 }
 
 configure_timezone() {
