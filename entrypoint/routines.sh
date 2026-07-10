@@ -244,6 +244,145 @@ start_amp() {
   echo "AMP Started!"
 }
 
+# --- dune-admin supervision helpers -----------------------------------------
+# dune-admin (as of the bundled release) only establishes its PostgreSQL
+# connection on the working *startup* path. If that first connect fails (Postgres
+# not ready yet, the Dune stack still booting) the process is left with no DB
+# handle, and the in-UI "Reconnect" button rebuilds the DSN from now-empty
+# internal fields -- producing errors like:
+#   failed to connect to `user=password= database=sslmode=disable`:
+#   FATAL: role "password=" does not exist (SQLSTATE 28000)
+# The only reliable recovery is a full process restart (which reuses the working
+# startup path). These helpers supervise dune-admin and restart it automatically
+# whenever its database connection is down while PostgreSQL is actually up, so
+# the panel self-heals instead of stranding the operator on the broken button.
+
+# dune_admin_tcp_up HOST PORT -- returns 0 if a TCP connection succeeds. Uses
+# bash /dev/tcp because the image ships no ss/netstat/pg client.
+dune_admin_tcp_up() {
+  local host="$1" port="$2"
+  (exec 3<>"/dev/tcp/${host}/${port}") 2>/dev/null || return 1
+  exec 3>&- 2>/dev/null || true
+  return 0
+}
+
+# dune_admin_db_state PORT -- echoes the DB connection state dune-admin reports
+# on its own status endpoint: "connected", "disconnected", or "unknown". The
+# /api/v1/status heartbeat is unauthenticated when dashboard auth is disabled
+# (the default for this image); when auth is enabled it needs a session, so this
+# returns "unknown" and the caller falls back to a Postgres-recovery heuristic.
+dune_admin_db_state() {
+  local port="$1" body
+  body="$(wget -q -T 5 -O - "http://127.0.0.1:${port}/api/v1/status" 2>/dev/null)" || {
+    echo "unknown"
+    return 0
+  }
+  case "${body}" in
+    *'"db_connected":true'*) echo "connected" ;;
+    *'"db_connected":false'*) echo "disconnected" ;;
+    *) echo "unknown" ;;
+  esac
+}
+
+# dune_admin_launch DA_BIN CFG_DIR DB_HOST DB_PORT CONTAINER -- waits (bounded)
+# for the Dune container and PostgreSQL to be reachable, launches dune-admin in
+# the background, and echoes its PID. `exec` makes the backgrounded subshell
+# become dune-admin itself so $! is the real process PID.
+dune_admin_launch() {
+  local da_bin="$1" cfg_dir="$2" db_host="$3" db_port="$4" container="$5"
+  local waited=0
+  # 1. Wait for the Dune Podman container to be up (needed by the amp provider).
+  until su -l "${APP_USER}" -c "podman ps --format '{{.Names}}'" 2>/dev/null | grep -q "^${container}$"; do
+    sleep 5
+    waited=$((waited + 5))
+    if [ "${waited}" -ge 600 ]; then
+      echo "dune-admin: timed out waiting for container ${container}; starting anyway." >&2
+      break
+    fi
+  done
+  # 2. Wait for PostgreSQL to actually accept TCP connections.
+  waited=0
+  until dune_admin_tcp_up "${db_host}" "${db_port}"; do
+    sleep 5
+    waited=$((waited + 5))
+    if [ "${waited}" -ge 600 ]; then
+      echo "dune-admin: timed out waiting for database ${db_host}:${db_port}; starting anyway." >&2
+      break
+    fi
+  done
+  ( cd /opt/dune-admin && exec env HOME=/home/amp "${da_bin}" >>"${cfg_dir}/dune-admin.log" 2>&1 ) &
+  echo "$!"
+}
+
+# dune_admin_supervise DA_BIN CFG_DIR DB_HOST DB_PORT PORT CONTAINER -- runs the
+# launch-then-monitor loop forever (meant to run in the background).
+dune_admin_supervise() {
+  # This is a long-running background loop; disable errexit (inherited from
+  # main.sh) so a single transient non-zero command can never kill the monitor.
+  set +e
+  local da_bin="$1" cfg_dir="$2" db_host="$3" db_port="$4" port="$5" container="$6"
+  local check_interval=30 fail_threshold=3 grace=25
+  local pid state fails=0 pg_was_down=0
+
+  pid="$(dune_admin_launch "${da_bin}" "${cfg_dir}" "${db_host}" "${db_port}" "${container}")"
+  echo "dune-admin: launched (pid ${pid}); supervising DB connection."
+  sleep "${grace}"
+
+  while true; do
+    sleep "${check_interval}"
+
+    # Process gone? Relaunch it.
+    if ! kill -0 "${pid}" 2>/dev/null; then
+      echo "dune-admin: process ${pid} exited; relaunching."
+      pid="$(dune_admin_launch "${da_bin}" "${cfg_dir}" "${db_host}" "${db_port}" "${container}")"
+      echo "dune-admin: relaunched (pid ${pid})."
+      fails=0
+      pg_was_down=0
+      sleep "${grace}"
+      continue
+    fi
+
+    # Nothing to heal while PostgreSQL itself is unreachable -- wait for it.
+    if ! dune_admin_tcp_up "${db_host}" "${db_port}"; then
+      pg_was_down=1
+      fails=0
+      continue
+    fi
+
+    # PostgreSQL is up: confirm dune-admin is actually connected to it.
+    state="$(dune_admin_db_state "${port}")"
+    if [ "${state}" = "connected" ]; then
+      fails=0
+      pg_was_down=0
+      continue
+    fi
+
+    # Restart when either the status endpoint says the DB is disconnected, or we
+    # can't read it (auth on) but just saw PostgreSQL recover from being down --
+    # both mean dune-admin's DB handle is stale and only a restart recovers it.
+    if [ "${state}" = "disconnected" ] || { [ "${state}" = "unknown" ] && [ "${pg_was_down}" = "1" ]; }; then
+      fails=$((fails + 1))
+      echo "dune-admin: database unavailable while PostgreSQL is up (${fails}/${fail_threshold}, status=${state})."
+      if [ "${fails}" -ge "${fail_threshold}" ]; then
+        echo "dune-admin: restarting to re-establish the database connection."
+        kill "${pid}" 2>/dev/null || true
+        sleep 3
+        kill -9 "${pid}" 2>/dev/null || true
+        pkill -f "${da_bin}" 2>/dev/null || true
+        sleep 1
+        pid="$(dune_admin_launch "${da_bin}" "${cfg_dir}" "${db_host}" "${db_port}" "${container}")"
+        echo "dune-admin: restarted (pid ${pid})."
+        fails=0
+        pg_was_down=0
+        sleep "${grace}"
+      fi
+    else
+      # Unknown state with no observed Postgres outage -- assume healthy.
+      fails=0
+    fi
+  done
+}
+
 start_dune_admin() {
   # Optional: launch dune-admin (https://github.com/Icehunter/dune-admin), a web
   # admin panel for a Dune Awakening private server managed by AMP.
@@ -325,40 +464,17 @@ start_dune_admin() {
   # (and keeps its own state -- auth db, audit log, market cache -- on the volume).
   ln -sfn "${cfg_dir}" /root/.dune-admin
 
-  # Launch in the background. dune-admin only attempts the DB connection once at
-  # startup (its in-UI "Reconnect" does not reuse the config credentials), so we
-  # must wait until the Dune stack is genuinely ready before launching -- first
-  # for the container, then for PostgreSQL to actually accept connections.
-  # Otherwise dune-admin starts before Postgres is listening, gets "connection
-  # refused", and sits disconnected until manually restarted.
+  # Launch under a supervisor. dune-admin only establishes its DB connection on
+  # the working startup path -- if that first attempt fails (Postgres not ready,
+  # the Dune stack still booting) the process is left disconnected, and the in-UI
+  # "Reconnect" button then fails with a malformed DSN (role "password=" does not
+  # exist). The supervisor waits for the Dune container + PostgreSQL before each
+  # launch and restarts dune-admin automatically whenever its DB connection is
+  # down while PostgreSQL is up, so the panel self-heals instead of stranding the
+  # operator on the broken button.
   local db_host="${DUNE_ADMIN_DB_HOST:-127.0.0.1}"
   local db_port="${DUNE_ADMIN_DB_PORT:-15432}"
-  (
-    local waited=0
-    # 1. Wait for the Dune Podman container to be up (needed by the amp provider).
-    until su -l "${APP_USER}" -c "podman ps --format '{{.Names}}'" 2>/dev/null | grep -q "^${container}$"; do
-      sleep 5
-      waited=$((waited + 5))
-      if [ "${waited}" -ge 600 ]; then
-        echo "dune-admin: timed out waiting for container ${container}; starting anyway."
-        break
-      fi
-    done
-    # 2. Wait for PostgreSQL to actually accept TCP connections (bash /dev/tcp,
-    #    since the image ships no ss/netstat/pg client).
-    waited=0
-    until (exec 3<>"/dev/tcp/${db_host}/${db_port}") 2>/dev/null; do
-      sleep 5
-      waited=$((waited + 5))
-      if [ "${waited}" -ge 600 ]; then
-        echo "dune-admin: timed out waiting for database ${db_host}:${db_port}; starting anyway."
-        break
-      fi
-    done
-    exec 3>&- 2>/dev/null || true
-    cd /opt/dune-admin
-    HOME=/home/amp "${DA_BIN}" >>"${cfg_dir}/dune-admin.log" 2>&1
-  ) &
+  dune_admin_supervise "${DA_BIN}" "${cfg_dir}" "${db_host}" "${db_port}" "${port}" "${container}" &
 
   echo "dune-admin started on port ${port} (logs: ${cfg_dir}/dune-admin.log)"
 }

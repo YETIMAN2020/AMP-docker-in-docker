@@ -8,13 +8,20 @@ As an added bonus of absolute "jank,and duct tape" this image also pre-scripts a
 
 Yes, it's duct-taped together. Yes, it shouldn't work. **But it does.**
 
-Also any issues with the DB connection in the dune admin panel can be fixed but stopping the service and starting it again with
+DB connection issues in the dune-admin panel are now handled automatically. The
+container supervises dune-admin and restarts it whenever its database connection
+is down while PostgreSQL is actually up, so it self-heals if it ever comes up
+before the Dune server/Postgres is ready. (Previously the panel could start
+before the server and get stuck, because dune-admin's in-UI "Reconnect" button
+rebuilds a broken connection string — e.g. `role "password=" does not exist` —
+instead of reusing its startup credentials; a full process restart is the only
+reliable fix, which the supervisor now performs for you.)
+
+If you ever need to restart it by hand, you still can:
 
 `pkill -f /opt/dune-admin/dune-admin`
 
-and then with `cd /opt/dune-admin && nohup ./dune-admin >>/home/amp/.dune-admin/dune-admin.log 2>&1 &` 
-
-I have yet to sort a work around for it (the dune admin panel starts before the server then refuses to connect)
+and then `cd /opt/dune-admin && nohup ./dune-admin >>/home/amp/.dune-admin/dune-admin.log 2>&1 &`
 
 ---
 
