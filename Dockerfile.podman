@@ -162,12 +162,18 @@ RUN if [ "$TARGETPLATFORM" = "linux/arm64" ]; then \
 # ---------------------------------------------------------------------------
 # Podman variant: install Podman and the packages needed to run it (rootless)
 # from inside this container. AMP uses Podman for "containerized" instances.
+#
+# passt provides "pasta", the default rootless network backend for Podman 5.x
+# (as shipped on Debian 13). Without it, rootless containers fail to start with
+#   Error: could not find pasta ... exec: "pasta": executable file not found
+# slirp4netns is kept as the older/fallback backend.
 # ---------------------------------------------------------------------------
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     podman \
     buildah \
     uidmap \
+    passt \
     slirp4netns \
     fuse-overlayfs \
     crun \
