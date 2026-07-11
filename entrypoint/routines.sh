@@ -144,7 +144,58 @@ configure_podman() {
     echo "         Run this container with --privileged, or --cap-add=SYS_ADMIN --security-opt seccomp=unconfined."
   fi
 
+  # 4. Rootless storage driver. In this nested (Podman-inside-Docker) setup the
+  #    kernel's native "overlay" driver cannot execute binaries from some images
+  #    -- crun fails with:
+  #      the path `/usr/bin/tini` exists but it is not executable:
+  #      Operation not permitted: OCI permission denied
+  #    (it affects every binary in the image, e.g. the ampbase entrypoint, so the
+  #    instance never starts). Forcing a driver that works around this fixes it.
+  #    "vfs" is the safe default: it fully materialises each layer so binaries
+  #    always execute, at the cost of more disk use and slower image ops. Set
+  #    PODMAN_STORAGE_DRIVER=overlay to instead use fuse-overlayfs (layer-sharing,
+  #    disk-efficient) where the host supports it.
+  ensure_podman_storage_driver "${APP_USER}"
+
   echo "Podman configured!"
+}
+
+ensure_podman_storage_driver() {
+  # Writes ~/.config/containers/storage.conf for the given user so rootless
+  # Podman uses a driver that can execute image binaries in this nested setup.
+  # Only writes when no storage.conf exists yet, so an operator's own choice is
+  # respected. Usage: ensure_podman_storage_driver <user>
+  local user="$1"
+  [ -z "${user}" ] && return 0
+
+  local home
+  home=$(getent passwd "${user}" | cut -d: -f6)
+  [ -z "${home}" ] && home="/home/${user}"
+  local conf_dir="${home}/.config/containers"
+  local conf="${conf_dir}/storage.conf"
+
+  if [ -f "${conf}" ]; then
+    return 0
+  fi
+
+  local driver="${PODMAN_STORAGE_DRIVER:-vfs}"
+  echo "Setting rootless Podman storage driver to '${driver}' for ${user} (${conf})..."
+  mkdir -p "${conf_dir}"
+  if [ "${driver}" = "overlay" ]; then
+    cat >"${conf}" <<EOF
+[storage]
+driver = "overlay"
+
+[storage.options.overlay]
+mount_program = "/usr/bin/fuse-overlayfs"
+EOF
+  else
+    cat >"${conf}" <<EOF
+[storage]
+driver = "${driver}"
+EOF
+  fi
+  chown -R "${user}:${APP_GROUP:-${user}}" "${home}/.config" 2>/dev/null || true
 }
 
 configure_timezone() {
