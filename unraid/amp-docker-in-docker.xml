@@ -16,7 +16,7 @@
   <Privileged>false</Privileged>
   <Support>https://github.com/MitchTalmadge/AMP-dockerized/issues</Support>
   <Project>https://cubecoders.com/AMP</Project>
-  <Overview>Community-made image for CubeCoders AMP (Podman variant), bundling Podman for "containerized" instances and an optional dune-admin web panel for a Dune: Awakening private server. UNOFFICIAL and unsupported by CubeCoders.</Overview>
+  <Overview>Community-made image for CubeCoders AMP (Podman variant), bundling Podman for "containerized" instances. A separate custom AMP template (Dune Admin) is provided for running the dune-admin web panel for a Dune: Awakening private server. UNOFFICIAL and unsupported by CubeCoders.</Overview>
   <Category>GameServers:</Category>
   <WebUI>http://[IP]:8181/</WebUI>
   <TemplateURL/>
@@ -32,7 +32,7 @@
   <DateInstalled/>
   <DonateText/>
   <DonateLink/>
-  <Description>Community-made image for CubeCoders AMP (Podman variant). Bundles Podman + the fixes needed to run AMP "containerized" instances, and an optional dune-admin web panel for a Dune: Awakening private server. This is an UNOFFICIAL image and is not endorsed or supported by CubeCoders.</Description>
+  <Description>Community-made image for CubeCoders AMP (Podman variant). Bundles Podman + the fixes needed to run AMP "containerized" instances. The dune-admin web panel for a Dune: Awakening private server is provided separately as a custom AMP template (Dune Admin) rather than being built in. This is an UNOFFICIAL image and is not endorsed or supported by CubeCoders.</Description>
 
   <!-- ============================ Storage ============================ -->
   <Config Name="AMP Data" Target="/home/amp" Default="/mnt/user/appdata/amp" Mode="rw,shared" Description="All AMP data (instances, saves, web UI login). Access Mode MUST be RW: Shared for Podman containerized instances." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/amp</Config>
@@ -44,13 +44,11 @@
   <Config Name="Admin Username" Target="USERNAME" Default="admin" Mode="" Description="Username of the admin user created on first boot only." Type="Variable" Display="always" Required="false" Mask="false">admin</Config>
   <Config Name="Admin Password" Target="PASSWORD" Default="password" Mode="" Description="Password for the admin user (used only when first created). Change it after first sign-in." Type="Variable" Display="always" Required="false" Mask="true">password</Config>
 
-  <!-- ==================== dune-admin (optional) ====================== -->
-  <Config Name="dune-admin: Enable" Target="DUNE_ADMIN_ENABLED" Default="false" Mode="" Description="Set to true to run the dune-admin web panel for a Dune: Awakening server managed by AMP." Type="Variable" Display="always" Required="false" Mask="false">false</Config>
-  <Config Name="dune-admin: Web Port" Target="DUNE_ADMIN_PORT" Default="18080" Mode="" Description="Port the dune-admin web panel listens on. Change it if 18080 is already used. (Host networking: binds directly on this port.)" Type="Variable" Display="always" Required="false" Mask="false">18080</Config>
-  <Config Name="dune-admin: AMP Instance" Target="DUNE_ADMIN_INSTANCE" Default="Arrakis01" Mode="" Description="AMP instance name of your Dune server (see 'ampinstmgr -l'). The Podman container is assumed to be AMP_&lt;instance&gt;." Type="Variable" Display="always" Required="false" Mask="false">Arrakis01</Config>
-  <Config Name="dune-admin: AMP API User" Target="DUNE_ADMIN_API_USER" Default="" Mode="" Description="An AMP panel login, used only for the Server Settings tab. Leave blank to skip." Type="Variable" Display="advanced" Required="false" Mask="false"/>
-  <Config Name="dune-admin: AMP API Password" Target="DUNE_ADMIN_API_PASS" Default="" Mode="" Description="Password for the AMP API user above." Type="Variable" Display="advanced" Required="false" Mask="true"/>
-  <Config Name="dune-admin: AMP API Port" Target="DUNE_ADMIN_API_PORT" Default="8086" Mode="" Description="The Dune instance's ADS/app port (from 'ampinstmgr -l'). Used for the Server Settings tab." Type="Variable" Display="advanced" Required="false" Mask="false">8086</Config>
-  <Config Name="dune-admin: Login Username" Target="DUNE_ADMIN_AUTH_USER" Default="" Mode="" Description="Dashboard login username. Set this AND the password hash below to require a login (strongly recommended — dune-admin has full server control)." Type="Variable" Display="advanced" Required="false" Mask="false"/>
-  <Config Name="dune-admin: Login Password Hash" Target="DUNE_ADMIN_AUTH_PASSWORD_HASH" Default="" Mode="" Description="bcrypt hash of the dashboard password. Generate with: /opt/dune-admin/dune-admin --set-password" Type="Variable" Display="advanced" Required="false" Mask="true"/>
+  <!--
+    dune-admin (the Dune: Awakening web panel) is no longer built into this image
+    or configured via environment variables. It now runs as a separate
+    AMP-managed application using the custom "Dune Admin" template in this repo
+    (amp-templates/dune-admin). Add that template in AMP and create a Dune Admin
+    instance; AMP handles its download, port, lifecycle and start ordering.
+  -->
 </Container>

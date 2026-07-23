@@ -196,29 +196,26 @@ RUN mkdir -p /etc/containers && \
     printf 'unqualified-search-registries = ["docker.io"]\n' > /etc/containers/registries.conf
 
 # ---------------------------------------------------------------------------
-# Podman variant: bundle dune-admin (https://github.com/Icehunter/dune-admin),
-# an optional web admin panel for a Dune Awakening private server managed by AMP.
-# It is installed but NOT started unless DUNE_ADMIN_ENABLED=true at runtime
-# (see entrypoint/routines.sh:start_dune_admin). Updating this image updates
-# dune-admin. `sudo` is installed because the dune-admin "amp" provider shells
-# out with `sudo -u <amp-user>` to run ampinstmgr / podman as the AMP user.
+# Podman variant: sudo + ca-certificates.
+#
+# dune-admin is NO LONGER bundled in this image. It now runs as a separate
+# AMP-managed application via the custom "Dune Admin" template in this repo
+# (amp-templates/dune-admin), so AMP handles its download, lifecycle, start
+# ordering and restarts -- which fixes the boot-timing / reconnect problems the
+# embedded launcher had. See amp-templates/dune-admin/README.md.
+#
+# ca-certificates is kept for TLS (release downloads, dune-admin's market bot).
+# sudo is kept because dune-admin's "amp" provider may shell out to run
+# ampinstmgr / podman.
 # ---------------------------------------------------------------------------
-ARG DUNE_ADMIN_VERSION=v0.43.1
 RUN apt-get update && \
     apt-get install -y --no-install-recommends sudo ca-certificates && \
-    if [ "$TARGETPLATFORM" = "linux/arm64" ]; then DA_ARCH=arm64; else DA_ARCH=amd64; fi && \
-    mkdir -p /opt/dune-admin && \
-    wget -qO /tmp/dune-admin.tgz "https://github.com/Icehunter/dune-admin/releases/download/${DUNE_ADMIN_VERSION}/dune-admin_linux_${DA_ARCH}.tar.gz" && \
-    tar -xzf /tmp/dune-admin.tgz -C /opt/dune-admin && \
-    chmod +x /opt/dune-admin/dune-admin && \
     apt-get -y clean && \
     apt-get -y autoremove --purge && \
     rm -rf \
     /tmp/* \
     /var/lib/apt/lists/* \
     /var/tmp/*
-ENV DUNE_ADMIN_ENABLED=false
-ENV DUNE_ADMIN_VERSION=${DUNE_ADMIN_VERSION}
 
 # Install Adoptium JDK
 RUN wget -O - https://packages.adoptium.net/artifactory/api/gpg/key/public | tee /etc/apt/keyrings/adoptium.asc && \
