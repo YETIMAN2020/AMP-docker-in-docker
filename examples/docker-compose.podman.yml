@@ -34,7 +34,7 @@ services:
 
     ports:
       - 8080:8080                       # AMP Web UI
-      # - 18080:18080                   # dune-admin web UI (see DUNE_ADMIN_* below)
+      # - 18080:18080                   # Dune Admin panel (runs as a separate AMP app; see amp-templates/dune-admin)
       # Uncomment the ports below as needed for whatever game servers you'll be running.
       # - 34197:34197/udp               # Factorio
       # - 27015:27015/udp               # GMod, TF2, and other Source engine games
@@ -52,14 +52,7 @@ services:
       - "UID=120" # Change according to which user on the host will own the ampdata volume.
       - "GID=124"
       - "TZ=Etc/UTC" # https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
-      # --- Optional: dune-admin web panel for a Dune: Awakening server (see README) ---
-      # - "DUNE_ADMIN_ENABLED=true"
-      # - "DUNE_ADMIN_INSTANCE=Arrakis01"   # AMP instance name from `ampinstmgr -l`
-      # - "DUNE_ADMIN_PORT=18080"
-      # - "DUNE_ADMIN_API_USER=admin"       # AMP panel login (for the Server Settings tab)
-      # - "DUNE_ADMIN_API_PASS=changeme"
-      # - "DUNE_ADMIN_API_PORT=8086"        # the Dune instance's ADS/app port
-      # dune-admin has full server control -- set a login before exposing it:
-      # - "DUNE_ADMIN_AUTH_USER=admin"
-      # - "DUNE_ADMIN_AUTH_PASSWORD_HASH=$$2a$$10$$replace_with_bcrypt_hash"
+      # The dune-admin web panel is no longer configured here. It runs as a
+      # separate AMP-managed application -- add the custom "Dune Admin" template
+      # (amp-templates/dune-admin) in AMP and create an instance from it.
     restart: unless-stopped
