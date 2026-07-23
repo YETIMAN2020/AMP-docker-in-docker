@@ -2,9 +2,13 @@
 
 This is a customized, modified fork of [MitchTalmadge/AMP-dockerized](https://github.com/MitchTalmadge/AMP-dockerized). 
 
-The primary goal of this modified version is to allow **AMP (Cubecoders Application Management Panel)** to run nested Docker containers internally, specifically tailored to deploy and manage a **Dune: Awakening** dedicated server on an **Unraid** host.
+The primary goal of this modified version is to allow **AMP (Cubecoders Application Management Panel)** to run nested containers internally (via Podman), specifically tailored to deploy and manage a **Dune: Awakening** dedicated server on an **Unraid** host.
 
-As an added bonus of absolute "jank,and duct tape" this image also pre-scripts and embeds the **DUNE-Admin web panel** directly into the container. 
+The **dune-admin web panel** is provided as a separate **custom AMP template**
+(see [`amp-templates/dune-admin`](amp-templates/dune-admin)) that you add to AMP
+and run as its own application — it is no longer built into the image. Letting
+AMP manage the panel fixes the start-ordering and DB-reconnect problems the old
+embedded launcher had.
 
 Yes, it's duct-taped together. Yes, it shouldn't work. **But it does.**
 
@@ -13,8 +17,8 @@ Yes, it's duct-taped together. Yes, it shouldn't work. **But it does.**
 ##  Features
 
 - **Upstream AMP Core:** Built on top of MitchTalmadge's excellent Dockerized AMP base.
-- **Docker-in-Docker (DinD) Capability:** Modified to allow AMP to launch and manage its own sub-containers inside an isolated environment (crucial for modern AMP game instances on Unraid).
-- **Embedded Dune-Admin:** Includes the custom web management panel scripted by [Icehunter/dune-admin](https://github.com/Icehunter/dune-admin) to control your Dune server instance out of the box.
+- **Podman-in-Docker Capability:** Modified to allow AMP to launch and manage its own nested (Podman) containers inside an isolated environment (crucial for modern AMP game instances on Unraid).
+- **Dune-Admin as an AMP app:** The [Icehunter/dune-admin](https://github.com/Icehunter/dune-admin) control panel ships as a custom AMP Generic template ([`amp-templates/dune-admin`](amp-templates/dune-admin)) so AMP downloads, configures, starts and restarts it like any other instance.
 
 ##  Unraid Deployment Notes
 
@@ -29,8 +33,14 @@ also please read the setup guide for [AMP-dockerized](https://github.com/MitchTa
 1. **Privileged Mode:** You **must** turn on `Privileged` mode (`--privileged`) in your Unraid Docker template. Nested virtualization and container routing require full host kernel capabilities.
 2. **Docker Storage Driver:** If you experience issues with sub-containers failing to pull or extract images, add the following environment variable to your template:
    - **Key:** `DOCKER_MODS` or override the storage driver via execution flags using `--storage-driver=overlay2` (depending on how you have your nested engine structured).
-3. **Volume Mounts:** Ensure your AMP data directory (`/home/amp/.ampdata`) is mapped to a fast cache pool user share (e.g., `/mnt/user/appdata/amp-dind/`) to prevent nested disk I/O bottlenecks.
+3. **Volume Mounts:** Map your AMP data directory (`/home/amp`) to a **real disk path that preserves Unix permissions**, e.g. a cache/pool path like `/mnt/cache/appdata/amp` (or a dedicated disk), and always move/restore that data with a permission-preserving tool (`cp -a`, `rsync -a`, `tar`). Copying game data without preserving permissions strips the execute bits off the server binaries and breaks startup.
 4. please please please make backups this could straight up implode also store your instances outside of the main AMP docker
+
+## Dune Admin web panel
+
+The dune-admin panel runs as its own AMP application, not as part of this image.
+See [`amp-templates/dune-admin/README.md`](amp-templates/dune-admin/README.md)
+for how to add the custom template to AMP and create a Dune Admin instance.
 
 ##  Credits & Disclaimers
 

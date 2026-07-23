@@ -1,0 +1,20 @@
+[
+    {
+        "UpdateStageName": "dune-admin Download (x86_64)",
+        "UpdateSourcePlatform": "Linux",
+        "UpdateSourceArch": "x86_64",
+        "UpdateSource": "Executable",
+        "UpdateSourceData": "/bin/bash",
+        "UpdateSourceArgs": "-c \"set -e; ServerVersion={{ServerVersion}}; if [[ -x dune-admin ]]; then InstalledVersion=$(./dune-admin --version 2>/dev/null | head -n1 | cut -d' ' -f2); else InstalledVersion=; fi; [[ -z $ServerVersion ]] && ServerVersion=$(wget -qO- https://api.github.com/repos/Icehunter/dune-admin/releases/latest | jq -r .tag_name); if [[ -z $ServerVersion || $ServerVersion == null ]]; then echo Could not determine dune-admin version; exit 1; fi; if [[ -n $InstalledVersion && $InstalledVersion == $ServerVersion ]]; then echo dune-admin $ServerVersion already installed - skipping; exit 0; fi; rm -f dune-admin.tgz; wget -qO dune-admin.tgz https://github.com/Icehunter/dune-admin/releases/download/$ServerVersion/dune-admin_linux_amd64.tar.gz || { echo Download failed from GitHub - aborting; exit 1; }; tar -xzf dune-admin.tgz && rm -f dune-admin.tgz && chmod +x dune-admin && echo dune-admin $ServerVersion downloaded\"",
+        "SkipOnFailure": false
+    },
+    {
+        "UpdateStageName": "dune-admin Download (aarch64)",
+        "UpdateSourcePlatform": "Linux",
+        "UpdateSourceArch": "aarch64",
+        "UpdateSource": "Executable",
+        "UpdateSourceData": "/bin/bash",
+        "UpdateSourceArgs": "-c \"set -e; ServerVersion={{ServerVersion}}; if [[ -x dune-admin ]]; then InstalledVersion=$(./dune-admin --version 2>/dev/null | head -n1 | cut -d' ' -f2); else InstalledVersion=; fi; [[ -z $ServerVersion ]] && ServerVersion=$(wget -qO- https://api.github.com/repos/Icehunter/dune-admin/releases/latest | jq -r .tag_name); if [[ -z $ServerVersion || $ServerVersion == null ]]; then echo Could not determine dune-admin version; exit 1; fi; if [[ -n $InstalledVersion && $InstalledVersion == $ServerVersion ]]; then echo dune-admin $ServerVersion already installed - skipping; exit 0; fi; rm -f dune-admin.tgz; wget -qO dune-admin.tgz https://github.com/Icehunter/dune-admin/releases/download/$ServerVersion/dune-admin_linux_arm64.tar.gz || { echo Download failed from GitHub - aborting; exit 1; }; tar -xzf dune-admin.tgz && rm -f dune-admin.tgz && chmod +x dune-admin && echo dune-admin $ServerVersion downloaded\"",
+        "SkipOnFailure": false
+    }
+]

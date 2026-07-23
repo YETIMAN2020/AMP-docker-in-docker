@@ -1,0 +1,9 @@
+[
+    {
+        "Protocol": "TCP",
+        "Port": 18080,
+        "Ref": "ServerPort",
+        "Name": "Web UI Port",
+        "Description": "Port the Dune Admin web panel listens on"
+    }
+]
